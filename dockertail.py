@@ -20,12 +20,17 @@ class ContainerInfo:
     def update(self):
         #print ("*** Updating {s.name}:{s.shortname}".format(s=self))
         proc = subprocess.run(["docker", "logs", "-t", "--tail", "10", self.name],
-            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=True)
+            stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False)
 
-        combinedoutput = proc.stdout + "\n" + proc.stderr
+        # sqlserver linux image uses "\r\n" as newlines and that completely messes up the 
+        # `docker logs -t` output (when output to console, it hides timestamps)
+        sout = proc.stdout.decode("utf-8").replace("\r", "")
+        serr = proc.stderr.decode("utf-8").replace("\r","")
+        combinedoutput = sout + "\n" + serr
 
-        if len(combinedoutput) == 0:
-            print ("no out: " + self.shortname)
+        if len(combinedoutput) < 5: # ie. not even timestamp
+            self.newlines = []
+            #print ("no out: " + self.shortname)
             return
 
         lines = combinedoutput.split("\n")
@@ -42,7 +47,7 @@ class ContainerInfo:
     def formatline(self, line):
         dockerTimestamp = line[:26]
         convtime = datetime.datetime.strptime(dockerTimestamp, "%Y-%m-%dT%H:%M:%S.%f")
-        return (convtime, line[30:])
+        return (convtime, line[31:])
 
 def get_containers(names):
     return [ContainerInfo(name) for name in names]
@@ -62,9 +67,9 @@ def main():
             container.update()
             lines.extend(container.getnewlines())
 
-        lines = sorted(lines)
+        lines = sorted(lines, key=lambda x: x[1])
         for line in lines:
-            print("{1:%y%m%d %H:%M:%S} {0}: {2}".format(line[0], line[1], line[2][21:]))
+            print("{1:%y%m%d %H:%M:%S} {0}: {2}".format(line[0], line[1], line[2]))
         
         lines.clear()
 
