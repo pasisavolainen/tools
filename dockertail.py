@@ -46,6 +46,9 @@ class ContainerInfo:
 
     def formatline(self, line):
         dockerTimestamp = line[:26]
+        # if container doesn't exist, the returned string is something like 'Error: no such container'
+        if not dockerTimestamp[0].isdigit():
+            return (self.seentime, line)
         convtime = datetime.datetime.strptime(dockerTimestamp, "%Y-%m-%dT%H:%M:%S.%f")
         return (convtime, line[31:])
 
