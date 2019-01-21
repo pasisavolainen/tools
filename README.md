@@ -1,11 +1,11 @@
 
-## dockertail.py
+# dockertail.py
 
-# Rationale
+## Rationale
 `docker-compose logs` kept crapping out, so this was the answer. Besides,
 it doesn't really support service filtering and clean-naming so there is that.
 
-# Example
+## Example
 
 Start `dockertail.py` with wanted containers as parameters (rename container with `,outputname`)
 ```sh
@@ -31,3 +31,12 @@ Expected output looks like:
 ```
 
 Ctrl-C to exit
+
+## Dirt
+
+`dockertail.py` runs `docker logs -t --tail N` on each container, with 1 sec delay.
+
+This is not fast and prone to losing log messages when N is less than what your 
+container does within that processing delay+second. Additionally messages might get
+output in slightly unchronological order (when first container outputs text before last
+container gets queries for its logs).
