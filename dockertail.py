@@ -2,9 +2,9 @@
 
 from optparse import OptionParser
 import subprocess
-
 import datetime
 from time import sleep
+import re
 
 class ContainerInfo:
     def __init__(self, sname):
@@ -16,13 +16,16 @@ class ContainerInfo:
             self.shortname = self.name
         self.seentime = datetime.datetime(2000, 1, 1)
         self.newlines = []
+        # "[2019-05-23 07:03:31 INF]"
+        self.tstamp_rx = re.compile("^\[\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2} .{3}\]")
 
     def update(self):
         #print ("*** Updating {s.name}:{s.shortname}".format(s=self))
-        proc = subprocess.run(["docker", "logs", "-t", "--tail", "10", self.name],
+
+        proc = subprocess.run(["docker", "logs", "-t", "--tail", "50", self.name],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, universal_newlines=False)
 
-        # sqlserver linux image uses "\r\n" as newlines and that completely messes up the 
+        # sqlserver linux image uses "\r\n" as newlines and that completely messes up the
         # `docker logs -t` output (when output to console, it hides timestamps)
         sout = proc.stdout.decode("utf-8").replace("\r", "")
         serr = proc.stderr.decode("utf-8").replace("\r","")
@@ -50,7 +53,11 @@ class ContainerInfo:
         if not dockerTimestamp[0].isdigit():
             return (self.seentime, line)
         convtime = datetime.datetime.strptime(dockerTimestamp, "%Y-%m-%dT%H:%M:%S.%f")
-        return (convtime, line[31:])
+        stamplessline = line[31:]
+        if (self.tstamp_rx.match(stamplessline)):
+            msglvl = stamplessline[21:24]
+            stamplessline = "{0} {1}".format(msglvl, stamplessline[26:])
+        return (convtime, stamplessline)
 
 def get_containers(names):
     return [ContainerInfo(name) for name in names]
@@ -61,7 +68,7 @@ def main():
                   help="write report to FILE", metavar="FILE")
 
     (options, args) = parser.parse_args()
-    
+
     containerInfos = get_containers(args)
 
     while 1:
@@ -72,8 +79,9 @@ def main():
 
         lines = sorted(lines, key=lambda x: x[1])
         for line in lines:
-            print("{1:%y%m%d %H:%M:%S} {0}: {2}".format(line[0], line[1], line[2]))
-        
+            service, timestamp, msg = line
+            print("{1: %H:%M:%S}.{3:02d} <{0}> {2}".format(service, timestamp, msg, int(timestamp.microsecond/10000)))
+
         lines.clear()
 
         sleep (1)
