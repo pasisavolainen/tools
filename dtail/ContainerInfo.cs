@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace dtail
 {
@@ -12,5 +13,6 @@ namespace dtail
         public Progress<string> Progress { get; internal set; }
         public CancellationTokenSource LogCancellation { get; internal set; }
         public string Id { get; internal set; }
+        public Task LogTask { get; internal set; }
     }
 }

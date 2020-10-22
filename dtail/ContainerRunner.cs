@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Text.RegularExpressions;
 using System.Threading;
 using System.Threading.Tasks;
 using Docker.DotNet;
@@ -35,12 +36,13 @@ namespace dtail
                 {
                     Id = container.ID,
                     ShortName = container.Names.FirstOrDefault() ?? container.ID,
-                    Progress = new Progress<string>(logLine => SeeLog(container.ID, logLine)),
+                    Progress = new Progress<string>(logLine => ProcessLogline(container.ID, logLine)),
                     Aliases = container.Names.Union(new[] { container.ID }).ToList(),
                     LogCancellation = new CancellationTokenSource(),
                 };
+                // need it here for mapping that starts as soon as container log starts ticking
                 Containers[container.ID] = c;
-                await DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, c.LogCancellation.Token, c.Progress);
+                c.LogTask = DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, c.LogCancellation.Token, c.Progress);
             }
 
             MonitorProgress = new Progress<Message>(OnMonitorProgress);
@@ -50,11 +52,22 @@ namespace dtail
             while (true) await Task.Delay(10);
         }
 
-        private void SeeLog(string containerId, string log)
+        private void ProcessLogline(string containerId, string logLine)
         {
             Containers.TryGetValue(containerId, out var container);
             var name = container?.ShortName ?? containerId;
-            Console.WriteLine($"<{name}> {log}");
+            var dt = DateTime.UtcNow;
+            // probably fucks up non-latin
+            logLine = new string(logLine.Where(c => c > 10).ToArray());
+            var rxMatch = Regex.Match(logLine, @".{0,8}?(?<dt>\d{4}-\d{2}-\d{2}T)");
+            var idxDt = rxMatch.Groups["dt"].Index;
+            if (logLine.Length > 32 && (idxDt >= 0 && idxDt < 8))
+            {
+                var timeString = logLine.Substring(idxDt, 30);
+                dt = DateTime.Parse(timeString);
+                logLine = logLine.Substring(idxDt + 31);
+            }
+            Console.WriteLine($"{dt:HH:mm:ss} <{name}> {logLine}");
         }
 
         private void OnMonitorProgress(Message obj)
