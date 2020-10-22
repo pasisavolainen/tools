@@ -22,16 +22,31 @@ namespace dtail
 
         CancellationTokenSource MonitorCancellation { get; } = new CancellationTokenSource();
         Progress<Message> MonitorProgress { get; set; }
+        Task MonitorTask { get; set; }
 
         internal async Task RunAsync()
         {
-            var conts = await DockerClient.Containers.ListContainersAsync(new ContainersListParameters { All = true });
+            MonitorProgress = new Progress<Message>(OnMonitorProgress);
 
-            Console.WriteLine($"Seeing {conts.Count} containers.");
+            MonitorTask = DockerClient.System.MonitorEventsAsync(new ContainerEventsParameters(), MonitorProgress, MonitorCancellation.Token);
+
+            while (true)
+            {
+                await Task.Delay(1000);
+                await RefreshContainers();
+            }
+        }
+
+        private async Task RefreshContainers()
+        {
+            var conts = await DockerClient.Containers.ListContainersAsync(new ContainersListParameters { All = true });
 
             var clp = new ContainerLogsParameters { Follow = true, ShowStderr = true, ShowStdout = true, Timestamps = true };
             foreach (var container in conts)
             {
+                if (Containers.ContainsKey(container.ID))
+                    continue;
+
                 var c = new ContainerInfo
                 {
                     Id = container.ID,
@@ -42,14 +57,10 @@ namespace dtail
                 };
                 // need it here for mapping that starts as soon as container log starts ticking
                 Containers[container.ID] = c;
+                Console.WriteLine($"Found: {c.ShortName}");
+
                 c.LogTask = DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, c.LogCancellation.Token, c.Progress);
             }
-
-            MonitorProgress = new Progress<Message>(OnMonitorProgress);
-
-            await DockerClient.System.MonitorEventsAsync(new ContainerEventsParameters(), MonitorProgress, MonitorCancellation.Token);
-
-            while (true) await Task.Delay(10);
         }
 
         private void ProcessLogline(string containerId, string logLine)
