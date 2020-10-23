@@ -105,3 +105,4 @@ venv.bak/
 .vs/
 bin/
 obj/
+out/
