@@ -1,5 +1,5 @@
 ﻿using System;
-using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using System.Text.RegularExpressions;
 using System.Threading;
@@ -11,14 +11,15 @@ namespace dtail
 {
     public class ContainerRunner
     {
-        public ContainerRunner(DockerClient dockerClient)
+        public DockerClient DockerClient { get; }
+        public ContainerLogsView ContainerLogsView { get; }
+
+        public ContainerRunner(DockerClient dockerClient,
+                               ContainerLogsView containerLogsView)
         {
             DockerClient = dockerClient;
+            ContainerLogsView = containerLogsView;
         }
-
-        public DockerClient DockerClient { get; }
-
-        Dictionary<string, ContainerInfo> Containers { get; set; } = new Dictionary<string, ContainerInfo>();
 
         CancellationTokenSource MonitorCancellation { get; } = new CancellationTokenSource();
         Progress<Message> MonitorProgress { get; set; }
@@ -44,7 +45,7 @@ namespace dtail
             var clp = new ContainerLogsParameters { Follow = true, ShowStderr = true, ShowStdout = true, Timestamps = true };
             foreach (var container in conts)
             {
-                if (Containers.ContainsKey(container.ID))
+                if(ContainerLogsView.HasContainer(container.ID))
                     continue;
 
                 var c = new ContainerInfo
@@ -56,8 +57,9 @@ namespace dtail
                     LogCancellation = new CancellationTokenSource(),
                 };
                 // need it here for mapping that starts as soon as container log starts ticking
-                Containers[container.ID] = c;
-                Console.WriteLine($"Found: {c.ShortName}");
+                ContainerLogsView.AddContainer(c);
+
+                Trace.WriteLine($"Found: {c.ShortName}");
 
                 c.LogTask = DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, c.LogCancellation.Token, c.Progress);
             }
@@ -65,8 +67,6 @@ namespace dtail
 
         private void ProcessLogline(string containerId, string logLine)
         {
-            Containers.TryGetValue(containerId, out var container);
-            var name = container?.ShortName ?? containerId;
             var dt = DateTime.UtcNow;
             // probably fucks up non-latin
             logLine = new string(logLine.Where(c => c > 10).ToArray());
@@ -78,12 +78,13 @@ namespace dtail
                 dt = DateTime.Parse(timeString);
                 logLine = logLine.Substring(idxDt + 31);
             }
-            Console.WriteLine($"{dt:HH:mm:ss} <{name}> {logLine}");
+            ContainerLogsView.AddLogLine(containerId, dt, logLine);
+            Trace.WriteLine($"{dt:HH:mm:ss} <{containerId}> {logLine}");
         }
 
         private void OnMonitorProgress(Message obj)
         {
-            Console.WriteLine(obj.ToString());
+            Trace.WriteLine(obj.ToString());
         }
     }
 }
