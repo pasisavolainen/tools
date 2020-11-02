@@ -30,5 +30,10 @@ namespace dtail
             LogLines.AddLast(ll);
             LineArrived?.Invoke(this, ll);
         }
+
+        internal void Refresh()
+        {
+            LineArrived?.Invoke(this, null);
+        }
     }
 }

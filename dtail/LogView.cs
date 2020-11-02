@@ -19,7 +19,7 @@ namespace dtail
             };
         }
 
-        private void ContainerLogsView_LineArrived(object sender, LogLine e)
+        private void ContainerLogsView_LineArrived(object _, LogLine __)
         {
             var labels = Labels.Reverse<Label>();
             var ll = ContainerLogsView.LogLines.Last;
@@ -27,7 +27,14 @@ namespace dtail
             foreach(var label in labels)
             {
                 if (ll == null)
-                    return;
+                {
+                    label.Text = "~";
+                    continue;
+                }
+
+                while (!conts[ll.Value.ContainerId].IsVisible && (ll = ll.Previous) != null) ;
+                if (ll == null)
+                    continue;
                 var line = ll.Value;
                 var shortname = conts[line.ContainerId].ShortName ?? line.ContainerId;
                 label.Text = $"{line.Time:HH:mm:ss} <{shortname}> {line.Line}";
