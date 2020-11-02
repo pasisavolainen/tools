@@ -6,6 +6,7 @@ using System.Threading;
 using System.Threading.Tasks;
 using Docker.DotNet;
 using Docker.DotNet.Models;
+using dtail.Config;
 
 namespace dtail
 {
@@ -13,13 +14,13 @@ namespace dtail
     {
         public DockerClient DockerClient { get; }
         public ContainerLogsView ContainerLogsView { get; }
+        public DTailConfig Config { get; }
 
         public ContainerRunner(DockerClient dockerClient,
-                               ContainerLogsView containerLogsView)
-        {
-            DockerClient = dockerClient;
-            ContainerLogsView = containerLogsView;
-        }
+                               ContainerLogsView containerLogsView,
+                               DTailConfig dt)
+            => (DockerClient, ContainerLogsView, Config)
+              = (dockerClient, containerLogsView, dt);
 
         CancellationTokenSource MonitorCancellation { get; } = new CancellationTokenSource();
         Progress<Message> MonitorProgress { get; set; }
@@ -37,6 +38,9 @@ namespace dtail
                 await RefreshContainers();
             }
         }
+
+        internal DTailConfig CollectConfig()
+            => Config;
 
         private async Task RefreshContainers()
         {
