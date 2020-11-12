@@ -11,7 +11,7 @@ The purpose of this tool is to show logs of selected containers, formatted mostl
 
  - [x] selecting visible containers
  - [x] store selections/settings in config file (`~/.dtailrc.json`)
- - [ ] rename containers (visible shortname, alias)
+ - [x] rename containers (visible shortname, alias)
  - [ ] log cursor position retainer (don't scroll off with the logs)
  - [ ] custom highlight strings ("red" for exceptions ..)
  - [ ] quick single container override (show single container log)
@@ -30,3 +30,5 @@ The purpose of this tool is to show logs of selected containers, formatted mostl
 - [ ] window resize breaks statusbar
 - [ ] handle long lines
 - [ ] special chars (f.ex color VT codes) are encoded into character soup
+- [ ] need to reattach container history when it goes down (ProgressTask dies) and then starts up again
+- [ ] investigate why DockerNet fails to deliver Monitor messages

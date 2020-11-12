@@ -7,6 +7,7 @@ using System.Threading.Tasks;
 using Docker.DotNet;
 using Docker.DotNet.Models;
 using dtail.Config;
+using dtail.Extensions;
 
 namespace dtail
 {
@@ -18,9 +19,13 @@ namespace dtail
 
         public ContainerRunner(DockerClient dockerClient,
                                ContainerLogsView containerLogsView,
-                               DTailConfig dt)
-            => (DockerClient, ContainerLogsView, Config)
-              = (dockerClient, containerLogsView, dt);
+                               DTailConfig config)
+        {
+            (DockerClient, ContainerLogsView, Config)
+            = (dockerClient, containerLogsView, config);
+
+            ContainerLogsView.SeedContainers(config);
+        }
 
         CancellationTokenSource MonitorCancellation { get; } = new CancellationTokenSource();
         Progress<Message> MonitorProgress { get; set; }
@@ -40,11 +45,13 @@ namespace dtail
         }
 
         internal DTailConfig CollectConfig()
-            => Config;
+            => new () {
+                ContainerInfos = ContainerLogsView.Containers.Values.Select(kv => kv.Info),
+            };
 
         private async Task RefreshContainers()
         {
-            var conts = await DockerClient.Containers.ListContainersAsync(new ContainersListParameters { All = true });
+            var conts = await DockerClient.Containers.ListContainersAsync(new () { All = true });
 
             var clp = new ContainerLogsParameters { Follow = true, ShowStderr = true, ShowStdout = true, Timestamps = true };
             foreach (var container in conts)
@@ -52,12 +59,20 @@ namespace dtail
                 if(ContainerLogsView.HasContainer(container.ID))
                     continue;
 
-                var c = new ContainerInfo
+                ContainerLogsView.AddLogLine("sys", DateTime.UtcNow, $"Found new container: {container.Dump()}");
+
+                var ci = ContainerLogsView.GetTemplate(container.Names.FirstOrDefault(),
+                            () => new ()
+                            {
+                                ShortName = container.Names.FirstOrDefault() ?? container.ID,
+                                Aliases = container.Names.Union(new[] { container.ID }).ToList(),
+                            });
+
+                var c = new RunningContainerInfo
                 {
                     Id = container.ID,
-                    ShortName = container.Names.FirstOrDefault() ?? container.ID,
+                    Info = ci,
                     Progress = new Progress<string>(logLine => ProcessLogline(container.ID, logLine)),
-                    Aliases = container.Names.Union(new[] { container.ID }).ToList(),
                     LogCancellation = new CancellationTokenSource(),
                 };
                 // need it here for mapping that starts as soon as container log starts ticking
@@ -80,7 +95,7 @@ namespace dtail
             {
                 var timeString = logLine.Substring(idxDt, 30);
                 dt = DateTime.Parse(timeString);
-                logLine = logLine.Substring(idxDt + 31);
+                logLine = logLine[(idxDt + 31)..];
             }
             ContainerLogsView.AddLogLine(containerId, dt, logLine);
             Trace.WriteLine($"{dt:HH:mm:ss} <{containerId}> {logLine}");

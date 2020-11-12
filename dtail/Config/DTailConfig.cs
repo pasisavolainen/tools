@@ -4,6 +4,6 @@ namespace dtail.Config
 {
     public class DTailConfig
     {
-        public IEnumerable<IContainerSaveableInfo> ContainerInfos { get; set; }
+        public IEnumerable<ContainerInfo> ContainerInfos { get; set; }
     }
 }
