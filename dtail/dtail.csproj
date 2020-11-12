@@ -11,11 +11,17 @@
     <PublishSingleFile>true</PublishSingleFile>-->
     <PublishTrimmed>true</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
+    <Configurations>Debug;Release;LocalGuics</Configurations>
   </PropertyGroup>
 
   <ItemGroup>
     <PackageReference Include="Docker.DotNet" Version="3.125.4" />
-    <PackageReference Include="Terminal.Gui" Version="0.90.1" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(Configuration)'=='LocalGuics'">
+    <ProjectReference Include="..\..\gui.cs\Terminal.Gui\Terminal.Gui.csproj" />
+  </ItemGroup>
+  <ItemGroup Condition="'$(Configuration)'!='LocalGuics'">
+    <PackageReference Include="Terminal.Gui" Version="0.90.1" />
+    </ItemGroup>
 </Project>
