@@ -12,6 +12,7 @@
     <PublishTrimmed>true</PublishTrimmed>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <Configurations>Debug;Release;LocalGuics</Configurations>
+    <Nullable>enable</Nullable>
   </PropertyGroup>
 
   <ItemGroup>
@@ -23,5 +24,5 @@
   </ItemGroup>
   <ItemGroup Condition="'$(Configuration)'!='LocalGuics'">
     <PackageReference Include="Terminal.Gui" Version="0.90.1" />
-    </ItemGroup>
+  </ItemGroup>
 </Project>

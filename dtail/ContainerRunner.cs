@@ -15,16 +15,15 @@ namespace dtail
     {
         public DockerClient DockerClient { get; }
         public ContainerLogsView ContainerLogsView { get; }
-        public DTailConfig Config { get; }
 
         public ContainerRunner(DockerClient dockerClient,
-                               ContainerLogsView containerLogsView,
-                               DTailConfig config)
+                               ContainerLogsView containerLogsView)
         {
-            (DockerClient, ContainerLogsView, Config)
-            = (dockerClient, containerLogsView, config);
+            (DockerClient, ContainerLogsView)
+            = (dockerClient, containerLogsView);
 
-            ContainerLogsView.SeedContainers(config);
+            MonitorProgress = new Progress<Message>(OnMonitorProgress);
+            MonitorTask = DockerClient.System.MonitorEventsAsync(new ContainerEventsParameters(), MonitorProgress, MonitorCancellation.Token);
         }
 
         CancellationTokenSource MonitorCancellation { get; } = new CancellationTokenSource();
@@ -33,9 +32,7 @@ namespace dtail
 
         internal async Task RunAsync()
         {
-            MonitorProgress = new Progress<Message>(OnMonitorProgress);
 
-            MonitorTask = DockerClient.System.MonitorEventsAsync(new ContainerEventsParameters(), MonitorProgress, MonitorCancellation.Token);
 
             while (true)
             {
@@ -61,26 +58,22 @@ namespace dtail
 
                 ContainerLogsView.AddLogLine("sys", DateTime.UtcNow, $"Found new container: {container.Dump()}");
 
-                var ci = ContainerLogsView.GetTemplate(container.Names.FirstOrDefault(),
+                var ci = ContainerLogsView.GetTemplate(container.Names.FirstOrDefault() ?? container.ID,
                             () => new ()
                             {
                                 ShortName = container.Names.FirstOrDefault() ?? container.ID,
                                 Aliases = container.Names.Union(new[] { container.ID }).ToList(),
                             });
 
-                var c = new RunningContainerInfo
-                {
-                    Id = container.ID,
-                    Info = ci,
-                    Progress = new Progress<string>(logLine => ProcessLogline(container.ID, logLine)),
-                    LogCancellation = new CancellationTokenSource(),
-                };
+                var progress = new Progress<string>(logLine => ProcessLogline(container.ID, logLine));
+                var cls = new CancellationTokenSource();
+                var ltask = DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, cls.Token, progress);
+                var c = new RunningContainerInfo(container.ID, ci, progress, ltask, cls);
+
                 // need it here for mapping that starts as soon as container log starts ticking
                 ContainerLogsView.AddContainer(c);
 
                 Trace.WriteLine($"Found: {c.ShortName}");
-
-                c.LogTask = DockerClient.Containers.GetContainerLogsAsync(container.ID, clp, c.LogCancellation.Token, c.Progress);
             }
         }
 

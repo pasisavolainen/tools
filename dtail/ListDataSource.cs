@@ -27,7 +27,7 @@ namespace dtail
         public IEnumerable<(T item, int index, bool marked)> GetItemMarkings()
             => this.Select((item, index) => (item, index, Marks.Contains(index)));
 
-        public Func<int, T, string> FormatItem = (index, item) => item.ToString();
+        public Func<int, T, string> FormatItem = (index, item) => item?.ToString() ?? string.Empty;
         public bool IsMarked(int item) => Marks.Contains(item);
 
         public void Render(ListView container, ConsoleDriver driver, bool selected, int item, int col, int line, int width)

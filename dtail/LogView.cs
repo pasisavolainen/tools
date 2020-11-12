@@ -19,7 +19,7 @@ namespace dtail
             };
         }
 
-        private void ContainerLogsView_LineArrived(object _, LogLine __)
+        private void ContainerLogsView_LineArrived(object? _, LogLine? __)
         {
             var labels = Labels.Reverse<Label>();
             var ll = ContainerLogsView.LogLines.Last;
