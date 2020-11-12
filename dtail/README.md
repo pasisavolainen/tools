@@ -20,3 +20,13 @@ The purpose of this tool is to show logs of selected containers, formatted mostl
  - [ ] spamminess throttle (cleanup ~n recent repeating lines)
  - [ ] group containers to "channels"
  - [ ] ping (^G) on keyword
+
+# needfix
+
+- [ ] backbuffer grows without limit
+- [ ] initial line order is by container found, not chrono
+- [ ] as containers die the Task gets stale
+- [ ] no duplicate containername/alias situation resolution
+- [ ] window resize breaks statusbar
+- [ ] handle long lines
+- [ ] special chars (f.ex color VT codes) are encoded into character soup
